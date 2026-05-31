@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<script src="https://3Dmol.org/build/3Dmol-min.js"></script>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChemLab AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f4f0; --surface: #ffffff; --surface2: #eef0f5;
+    --accent: #2563eb; --accent2: #7c3aed;
+    --green: #16a34a; --red: #dc2626; --yellow: #d97706;
+    --text: #111827; --muted: #6b7280; --border: #d1d5db;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; font-weight: 500; }
+  header { border-bottom: 1px solid var(--border); padding: 1.2rem 2rem; display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.9); position: sticky; top: 0; z-index: 10; }
+  .logo span { color: var(--text); }
+  main { max-width: 860px; margin: 0 auto; padding: 3rem 1.5rem; }
+  .hero { text-align: center; margin-bottom: 3rem; }
+  .hero h1 { font-size: 2.2rem; font-weight: 300; margin-bottom: 0.5rem; }
+  .hero h1 strong { color: var(--accent); }
+  .hero p { color: var(--muted); }
+  .tabs { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 4px; margin-bottom: 1.5rem; }
+  .tab { flex: 1; padding: 0.6rem 1rem; border: none; background: transparent; color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 0.9rem; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+  .tab.active { background: var(--surface2); color: var(--accent); border: 1px solid rgba(0,212,255,0.2); }
+  .panel { display: none; } .panel.active { display: block; }
+  .input-area { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }
+  .input-label { font-size: 0.8rem; color: var(--muted); font-family: 'Space Mono', monospace; margin-bottom: 0.8rem; display: block; }
+  .compound-inputs { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .compound-input, .single-input { background: #f0f2f7; border: 1px solid var(--border); border-radius: 10px; padding: 0.75rem 1rem; color: var(--text); font-family: 'Space Mono', monospace; font-size: 1rem; outline: none; transition: border-color 0.2s; }
+  .compound-input { flex: 1; min-width: 140px; } .single-input { width: 100%; }
+  .compound-input:focus, .single-input:focus { border-color: var(--accent); background: #ffffff; }
+  .compound-input::placeholder, .single-input::placeholder { color: var(--muted); }
+  .plus-sign { color: var(--muted); font-size: 1.2rem; }
+  .hint { font-size: 0.78rem; color: var(--muted); margin-top: 0.6rem; }
+  .btn-row { display: flex; gap: 10px; margin-top: 1rem; }
+  .btn { padding: 0.7rem 1.5rem; border-radius: 10px; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 0.9rem; font-weight: 500; transition: all 0.2s; }
+  .btn-primary { background: var(--accent); color: #ffffff; }
+  .btn-primary:hover { opacity: 0.85; }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .quick-examples { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 1rem; }
+  .example-chip { padding: 4px 12px; background: transparent; border: 1px solid var(--border); border-radius: 20px; color: var(--muted); font-size: 0.8rem; font-family: 'Space Mono', monospace; cursor: pointer; transition: all 0.2s; }
+  .example-chip:hover { border-color: var(--accent); color: var(--accent); }
+  .result-box { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; display: none; }
+  .result-box.visible { display: block; animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .result-header { display: flex; align-items: center; gap: 10px; margin-bottom: 1.2rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+  .reaction-tag { font-family: 'Space Mono', monospace; font-size: 0.85rem; color: var(--accent); background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.15); padding: 3px 10px; border-radius: 6px; }
+  .danger-badge { font-size: 0.75rem; padding: 3px 10px; border-radius: 6px; font-weight: 500; }
+  .danger-low { background: rgba(16,185,129,0.15); color: var(--green); border: 1px solid rgba(16,185,129,0.3); }
+  .danger-mid { background: rgba(245,158,11,0.15); color: var(--yellow); border: 1px solid rgba(245,158,11,0.3); }
+  .danger-high { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+  .result-content { color: var(--text); font-size: 0.92rem; line-height: 1.9; white-space: pre-wrap; }
+  .loading { display: flex; align-items: center; gap: 10px; color: var(--muted); }
+  .spinner { width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .disclaimer { margin-top: 2rem; padding: 1rem; background: rgba(245,158,11,0.05); border: 1px solid rgba(245,158,11,0.15); border-radius: 10px; font-size: 0.8rem; color: var(--muted); text-align: center; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">My Chemical<span> Lab</span></div>
+</header>
+<main>
+  <div class="hero">
+    <h1>화학반응 <strong>시뮬레이터</strong></h1>
+    <p>원소·화합물을 입력하면 반응 결과, 반응식, 위험도를 분석해드려요</p>
+  </div>
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('reaction', event)">⚗️ 반응 예측</button>
+    <button class="tab" onclick="switchTab('info', event)">🔬 물질 정보</button>
+    <button class="tab" onclick="switchTab('table', event)">⚛️ 주기율표</button>
+    <button class="tab" onclick="switchTab('mol', event)">🧬 분자 구조</button>
+    <button class="tab" onclick="switchTab('mole', event)">⚖️ 몰 계산기</button>
+  </div>
+
+  <div class="panel active" id="panel-reaction">
+    <div class="input-area">
+      <span class="input-label">// 반응물 입력 (대소문자 구분 없음)</span>
+      <div class="compound-inputs">
+        <input class="compound-input" id="reactant1" placeholder="H2SO4" />
+        <span class="plus-sign">+</span>
+        <input class="compound-input" id="reactant2" placeholder="NaOH" />
+        <span class="plus-sign">+</span>
+        <input class="compound-input" id="reactant3" placeholder="선택사항" />
+      </div>
+      <p class="hint">원소기호 또는 화학식 입력 — 대소문자 구분 없음</p>
+      <div class="quick-examples">
+        <button class="example-chip" onclick="fillExample('H2SO4','NaOH','')">H₂SO₄ + NaOH</button>
+        <button class="example-chip" onclick="fillExample('Fe','O2','')">Fe + O₂</button>
+        <button class="example-chip" onclick="fillExample('CH4','O2','')">CH₄ + O₂</button>
+        <button class="example-chip" onclick="fillExample('Na','H2O','')">Na + H₂O</button>
+        <button class="example-chip" onclick="fillExample('Zn','HCl','')">Zn + HCl</button>
+        <button class="example-chip" onclick="fillExample('Al','O2','')">Al + O₂</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-react" onclick="analyzeReaction()">반응 분석하기</button>
+        <button class="btn btn-secondary" onclick="clearReaction()">초기화</button>
+      </div>
+    </div>
+    <div class="result-box" id="result-reaction">
+      <div class="loading" id="loading-reaction" style="display:none">
+        <div class="spinner"></div><span>AI가 분석 중...</span>
+      </div>
+      <div id="reaction-output"></div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-info">
+    <div class="input-area">
+      <span class="input-label">// 원소 또는 화합물 검색 (118개 전체 지원)</span>
+      <input class="single-input" id="substance-input" placeholder="예: Gold, Fe, H2O, Caffeine, Uranium..." />
+      <p class="hint">원소기호, 영문명, 화학식 모두 가능</p>
+      <div class="quick-examples">
+        <button class="example-chip" onclick="fillInfo('Hydrogen')">Hydrogen</button>
+        <button class="example-chip" onclick="fillInfo('Gold')">Gold</button>
+        <button class="example-chip" onclick="fillInfo('Uranium')">Uranium</button>
+        <button class="example-chip" onclick="fillInfo('H2O')">H₂O</button>
+        <button class="example-chip" onclick="fillInfo('Carbon')">Carbon</button>
+        <button class="example-chip" onclick="fillInfo('Helium')">Helium</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-info" onclick="getSubstanceInfo()">정보 검색</button>
+        <button class="btn btn-secondary" onclick="clearInfo()">초기화</button>
+      </div>
+    </div>
+    <div class="result-box" id="result-info">
+      <div class="loading" id="loading-info" style="display:none">
+        <div class="spinner"></div><span>AI가 분석 중...</span>
+      </div>
+      <div id="info-output"></div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-table">
+    <div class="input-area">
+      <span class="input-label">// 원소 클릭 → AI가 상세 정보 분석</span>
+      <div id="periodic-table" style="overflow-x:auto;padding-bottom:1rem"></div>
+    </div>
+    <div class="result-box" id="result-table">
+      <div class="loading" id="loading-table" style="display:none">
+        <div class="spinner"></div><span>AI가 분석 중...</span>
+      </div>
+      <div id="table-output"></div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-mol">
+    <div class="input-area">
+      <span class="input-label">// 화합물 입력 → 3D 분자 구조 시각화</span>
+      <input class="single-input" id="mol-input" placeholder="예: water, ethanol, caffeine, aspirin..." />
+      <p class="hint">영문 물질명으로 입력해요</p>
+      <div class="quick-examples">
+        <button class="example-chip" onclick="fillMol('water')">Water</button>
+        <button class="example-chip" onclick="fillMol('ethanol')">Ethanol</button>
+        <button class="example-chip" onclick="fillMol('caffeine')">Caffeine</button>
+        <button class="example-chip" onclick="fillMol('aspirin')">Aspirin</button>
+        <button class="example-chip" onclick="fillMol('glucose')">Glucose</button>
+        <button class="example-chip" onclick="fillMol('benzene')">Benzene</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="showMolecule()">구조 보기</button>
+        <button class="btn btn-secondary" onclick="clearMol()">초기화</button>
+      </div>
+    </div>
+    <div class="result-box visible" id="result-mol" style="display:block">
+      <div id="mol-viewer" style="width:100%;height:400px;border-radius:12px;background:#0a0e1a;position:relative;">
+        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--muted);font-size:0.9rem;">화합물을 입력하고 구조 보기를 눌러요</div>
+      </div>
+      <div id="mol-info" style="margin-top:1rem;color:var(--muted);font-size:0.85rem;text-align:center;"></div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-mole">
+    <div class="input-area">
+      <span class="input-label">// 몰 계산기</span>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1rem;">
+        <div>
+          <label style="font-size:0.8rem;color:var(--muted);display:block;margin-bottom:6px;">화학식</label>
+          <input class="single-input" id="mole-formula" placeholder="예: H2O, NaCl, CO2" />
+        </div>
+        <div>
+          <label style="font-size:0.8rem;color:var(--muted);display:block;margin-bottom:6px;">계산 방식</label>
+          <select id="mole-type" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.75rem 1rem;color:var(--text);font-size:1rem;outline:none;">
+            <option value="mass-to-mole">질량 → 몰</option>
+            <option value="mole-to-mass">몰 → 질량</option>
+            <option value="mole-to-molecules">몰 → 분자 수</option>
+            <option value="molecules-to-mole">분자 수 → 몰</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label style="font-size:0.8rem;color:var(--muted);display:block;margin-bottom:6px;" id="mole-input-label">질량 (g)</label>
+        <input class="single-input" id="mole-value" placeholder="숫자 입력" type="number" />
+      </div>
+      <div class="quick-examples" style="margin-top:1rem;">
+        <button class="example-chip" onclick="fillMoleExample('H2O','mass-to-mole','18')">H₂O 18g → 몰</button>
+        <button class="example-chip" onclick="fillMoleExample('NaCl','mole-to-mass','2')">NaCl 2몰 → 질량</button>
+        <button class="example-chip" onclick="fillMoleExample('CO2','mole-to-molecules','1')">CO₂ 1몰 → 분자수</button>
+        <button class="example-chip" onclick="fillMoleExample('Fe','mass-to-mole','56')">Fe 56g → 몰</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="calcMole()">계산하기</button>
+        <button class="btn btn-secondary" onclick="clearMole()">초기화</button>
+      </div>
+    </div>
+    <div class="result-box" id="result-mole">
+      <div id="mole-output"></div>
+    </div>
+  </div>
+
+  <div class="disclaimer">⚠️ 이 앱은 학습 목적의 AI 기반 정보 제공 서비스입니다. 실제 실험 시 반드시 전문가 지도 하에 안전 수칙을 준수하세요.</div>
+</main>
+
+<script>
+  const API_KEY = "";
+
+  function normalize(input) {
+    return input.trim().replace(/[a-zA-Z]+/g, m => m.charAt(0).toUpperCase() + m.slice(1).toLowerCase());
+  }
+  function switchTab(tab, e) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    e.target.classList.add('active');
+    document.getElementById('panel-' + tab).classList.add('active');
+  }
+  function fillExample(r1, r2, r3) {
+    document.getElementById('reactant1').value = r1;
+    document.getElementById('reactant2').value = r2;
+    document.getElementById('reactant3').value = r3;
+  }
+  function fillInfo(name) { document.getElementById('substance-input').value = name; }
+  function clearReaction() {
+    ['reactant1','reactant2','reactant3'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('result-reaction').classList.remove('visible');
+    document.getElementById('reaction-output').innerHTML = '';
+  }
+  function clearInfo() {
+    document.getElementById('substance-input').value = '';
+    document.getElementById('result-info').classList.remove('visible');
+    document.getElementById('info-output').innerHTML = '';
+  }
+
+  async function callAI(prompt) {
+    const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + API_KEY;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    if (!data.candidates || !data.candidates[0]) throw new Error("응답을 받지 못했습니다");
+    return data.candidates[0].content.parts[0].text;
+  }
+
+  async function analyzeReaction() {
+    const r1 = normalize(document.getElementById('reactant1').value);
+    const r2 = normalize(document.getElementById('reactant2').value);
+    const r3 = normalize(document.getElementById('reactant3').value);
+    if (!r1 || !r2) { alert('반응물을 최소 2개 입력해주세요.'); return; }
+    const reactants = [r1, r2, r3].filter(r => r).join(' + ');
+    const btn = document.getElementById('btn-react');
+    const resultBox = document.getElementById('result-reaction');
+    const loading = document.getElementById('loading-reaction');
+    const output = document.getElementById('reaction-output');
+    btn.disabled = true;
+    resultBox.classList.add('visible');
+    loading.style.display = 'flex';
+    output.innerHTML = '';
+    try {
+      const result = await callAI(`화학 반응 분석을 해주세요. 반응물: ${reactants}
+다음 형식으로 한국어로 답해주세요:
+⚗️ 반응식
+📋 반응 유형
+🧪 생성물
+⚡ 반응 특성
+⚠️ 위험도: [낮음 / 중간 / 높음]
+💡 실생활 응용`);
+      loading.style.display = 'none';
+      const dangerMatch = result.match(/위험도[:\s]*(낮음|중간|높음)/);
+      let dangerClass = 'danger-low', dangerText = '낮음';
+      if (dangerMatch) {
+        if (dangerMatch[1] === '중간') { dangerClass = 'danger-mid'; dangerText = '중간'; }
+        if (dangerMatch[1] === '높음') { dangerClass = 'danger-high'; dangerText = '높음'; }
+      }
+      output.innerHTML = `<div class="result-header"><span class="reaction-tag">${reactants}</span><span class="danger-badge ${dangerClass}">위험도: ${dangerText}</span></div><div class="result-content">${formatResult(result)}</div>`;
+    } catch(err) {
+      loading.style.display = 'none';
+      output.innerHTML = `<div style="color:var(--red)">오류: ${err.message}</div>`;
+    }
+    btn.disabled = false;
+  }
+
+  async function getSubstanceInfo() {
+    const substance = document.getElementById('substance-input').value.trim();
+    if (!substance) { alert('물질명을 입력해주세요.'); return; }
+    const btn = document.getElementById('btn-info');
+    const resultBox = document.getElementById('result-info');
+    const loading = document.getElementById('loading-info');
+    const output = document.getElementById('info-output');
+    btn.disabled = true;
+    resultBox.classList.add('visible');
+    loading.style.display = 'flex';
+    output.innerHTML = '';
+    try {
+      const result = await callAI(`${substance}에 대한 화학 정보를 한국어로 알려주세요.
+🔬 기본 정보
+⚛️ 원자 구조
+🌡️ 물리적 성질
+⚗️ 화학적 성질
+🌍 실생활 활용
+⚠️ 안전 정보
+💡 재밌는 사실`);
+      loading.style.display = 'none';
+      output.innerHTML = `<div class="result-header"><span class="reaction-tag">${substance}</span></div><div class="result-content">${formatResult(result)}</div>`;
+    } catch(err) {
+      loading.style.display = 'none';
+      output.innerHTML = `<div style="color:var(--red)">오류: ${err.message}</div>`;
+    }
+    btn.disabled = false;
+  }
+
+  const ELEMENTS = [
+    {n:1,s:"H",name:"Hydrogen",c:"nonmetal"},{n:2,s:"He",name:"Helium",c:"noble"},
+    {n:3,s:"Li",name:"Lithium",c:"alkali"},{n:4,s:"Be",name:"Beryllium",c:"alkaline"},
+    {n:5,s:"B",name:"Boron",c:"metalloid"},{n:6,s:"C",name:"Carbon",c:"nonmetal"},
+    {n:7,s:"N",name:"Nitrogen",c:"nonmetal"},{n:8,s:"O",name:"Oxygen",c:"nonmetal"},
+    {n:9,s:"F",name:"Fluorine",c:"halogen"},{n:10,s:"Ne",name:"Neon",c:"noble"},
+    {n:11,s:"Na",name:"Sodium",c:"alkali"},{n:12,s:"Mg",name:"Magnesium",c:"alkaline"},
+    {n:13,s:"Al",name:"Aluminum",c:"post"},{n:14,s:"Si",name:"Silicon",c:"metalloid"},
+    {n:15,s:"P",name:"Phosphorus",c:"nonmetal"},{n:16,s:"S",name:"Sulfur",c:"nonmetal"},
+    {n:17,s:"Cl",name:"Chlorine",c:"halogen"},{n:18,s:"Ar",name:"Argon",c:"noble"},
+    {n:19,s:"K",name:"Potassium",c:"alkali"},{n:20,s:"Ca",name:"Calcium",c:"alkaline"},
+    {n:21,s:"Sc",name:"Scandium",c:"transition"},{n:22,s:"Ti",name:"Titanium",c:"transition"},
+    {n:23,s:"V",name:"Vanadium",c:"transition"},{n:24,s:"Cr",name:"Chromium",c:"transition"},
+    {n:25,s:"Mn",name:"Manganese",c:"transition"},{n:26,s:"Fe",name:"Iron",c:"transition"},
+    {n:27,s:"Co",name:"Cobalt",c:"transition"},{n:28,s:"Ni",name:"Nickel",c:"transition"},
+    {n:29,s:"Cu",name:"Copper",c:"transition"},{n:30,s:"Zn",name:"Zinc",c:"transition"},
+    {n:31,s:"Ga",name:"Gallium",c:"post"},{n:32,s:"Ge",name:"Germanium",c:"metalloid"},
+    {n:33,s:"As",name:"Arsenic",c:"metalloid"},{n:34,s:"Se",name:"Selenium",c:"nonmetal"},
+    {n:35,s:"Br",name:"Bromine",c:"halogen"},{n:36,s:"Kr",name:"Krypton",c:"noble"},
+    {n:37,s:"Rb",name:"Rubidium",c:"alkali"},{n:38,s:"Sr",name:"Strontium",c:"alkaline"},
+    {n:39,s:"Y",name:"Yttrium",c:"transition"},{n:40,s:"Zr",name:"Zirconium",c:"transition"},
+    {n:41,s:"Nb",name:"Niobium",c:"transition"},{n:42,s:"Mo",name:"Molybdenum",c:"transition"},
+    {n:43,s:"Tc",name:"Technetium",c:"transition"},{n:44,s:"Ru",name:"Ruthenium",c:"transition"},
+    {n:45,s:"Rh",name:"Rhodium",c:"transition"},{n:46,s:"Pd",name:"Palladium",c:"transition"},
+    {n:47,s:"Ag",name:"Silver",c:"transition"},{n:48,s:"Cd",name:"Cadmium",c:"transition"},
+    {n:49,s:"In",name:"Indium",c:"post"},{n:50,s:"Sn",name:"Tin",c:"post"},
+    {n:51,s:"Sb",name:"Antimony",c:"metalloid"},{n:52,s:"Te",name:"Tellurium",c:"metalloid"},
+    {n:53,s:"I",name:"Iodine",c:"halogen"},{n:54,s:"Xe",name:"Xenon",c:"noble"},
+    {n:55,s:"Cs",name:"Cesium",c:"alkali"},{n:56,s:"Ba",name:"Barium",c:"alkaline"},
+    {n:57,s:"La",name:"Lanthanum",c:"lanthanide"},{n:72,s:"Hf",name:"Hafnium",c:"transition"},
+    {n:73,s:"Ta",name:"Tantalum",c:"transition"},{n:74,s:"W",name:"Tungsten",c:"transition"},
+    {n:75,s:"Re",name:"Rhenium",c:"transition"},{n:76,s:"Os",name:"Osmium",c:"transition"},
+    {n:77,s:"Ir",name:"Iridium",c:"transition"},{n:78,s:"Pt",name:"Platinum",c:"transition"},
+    {n:79,s:"Au",name:"Gold",c:"transition"},{n:80,s:"Hg",name:"Mercury",c:"transition"},
+    {n:81,s:"Tl",name:"Thallium",c:"post"},{n:82,s:"Pb",name:"Lead",c:"post"},
+    {n:83,s:"Bi",name:"Bismuth",c:"post"},{n:84,s:"Po",name:"Polonium",c:"post"},
+    {n:85,s:"At",name:"Astatine",c:"halogen"},{n:86,s:"Rn",name:"Radon",c:"noble"},
+    {n:87,s:"Fr",name:"Francium",c:"alkali"},{n:88,s:"Ra",name:"Radium",c:"alkaline"},
+    {n:89,s:"Ac",name:"Actinium",c:"actinide"},{n:104,s:"Rf",name:"Rutherfordium",c:"transition"},
+    {n:105,s:"Db",name:"Dubnium",c:"transition"},{n:106,s:"Sg",name:"Seaborgium",c:"transition"},
+    {n:107,s:"Bh",name:"Bohrium",c:"transition"},{n:108,s:"Hs",name:"Hassium",c:"transition"},
+    {n:109,s:"Mt",name:"Meitnerium",c:"transition"},{n:110,s:"Ds",name:"Darmstadtium",c:"transition"},
+    {n:111,s:"Rg",name:"Roentgenium",c:"transition"},{n:112,s:"Cn",name:"Copernicium",c:"transition"},
+    {n:113,s:"Nh",name:"Nihonium",c:"post"},{n:114,s:"Fl",name:"Flerovium",c:"post"},
+    {n:115,s:"Mc",name:"Moscovium",c:"post"},{n:116,s:"Lv",name:"Livermorium",c:"post"},
+    {n:117,s:"Ts",name:"Tennessine",c:"halogen"},{n:118,s:"Og",name:"Oganesson",c:"noble"},
+  ];
+
+  const COLOR_MAP = {
+    alkali:"#ef4444", alkaline:"#f59e0b", transition:"#3b82f6",
+    post:"#8b5cf6", metalloid:"#10b981", nonmetal:"#06b6d4",
+    halogen:"#f97316", noble:"#6366f1", lanthanide:"#ec4899", actinide:"#14b8a6"
+  };
+
+  function buildPeriodicTable() {
+    const container = document.getElementById('periodic-table');
+    const style = document.createElement('style');
+    style.textContent = `
+      .pt-grid { display: grid; grid-template-columns: repeat(18, minmax(44px,1fr)); gap: 3px; min-width: 820px; }
+      .el-cell { border-radius: 6px; padding: 4px 2px; text-align: center; cursor: pointer; transition: all 0.15s; border: 1px solid transparent; }
+      .el-cell:hover { transform: scale(1.15); z-index: 10; border-color: var(--accent); box-shadow: 0 0 10px rgba(0,100,255,0.4); }
+      .el-num { font-size: 9px; color: rgba(255,255,255,0.6); }
+      .el-sym { font-size: 14px; font-weight: 700; color: #fff; font-family: 'Space Mono', monospace; }
+      .el-name { font-size: 8px; color: rgba(255,255,255,0.7); }
+      .pt-legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 1rem; }
+      .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+      .legend-dot { width: 10px; height: 10px; border-radius: 2px; }
+    `;
+    container.appendChild(style);
+    const grid = document.createElement('div');
+    grid.className = 'pt-grid';
+    const layout = [
+      [{n:1,col:1},{n:2,col:18}],
+      [{n:3,col:1},{n:4,col:2},{n:5,col:13},{n:6,col:14},{n:7,col:15},{n:8,col:16},{n:9,col:17},{n:10,col:18}],
+      [{n:11,col:1},{n:12,col:2},{n:13,col:13},{n:14,col:14},{n:15,col:15},{n:16,col:16},{n:17,col:17},{n:18,col:18}],
+      [{n:19,col:1},{n:20,col:2},{n:21,col:3},{n:22,col:4},{n:23,col:5},{n:24,col:6},{n:25,col:7},{n:26,col:8},{n:27,col:9},{n:28,col:10},{n:29,col:11},{n:30,col:12},{n:31,col:13},{n:32,col:14},{n:33,col:15},{n:34,col:16},{n:35,col:17},{n:36,col:18}],
+      [{n:37,col:1},{n:38,col:2},{n:39,col:3},{n:40,col:4},{n:41,col:5},{n:42,col:6},{n:43,col:7},{n:44,col:8},{n:45,col:9},{n:46,col:10},{n:47,col:11},{n:48,col:12},{n:49,col:13},{n:50,col:14},{n:51,col:15},{n:52,col:16},{n:53,col:17},{n:54,col:18}],
+      [{n:55,col:1},{n:56,col:2},{n:57,col:3},{n:72,col:4},{n:73,col:5},{n:74,col:6},{n:75,col:7},{n:76,col:8},{n:77,col:9},{n:78,col:10},{n:79,col:11},{n:80,col:12},{n:81,col:13},{n:82,col:14},{n:83,col:15},{n:84,col:16},{n:85,col:17},{n:86,col:18}],
+      [{n:87,col:1},{n:88,col:2},{n:89,col:3},{n:104,col:4},{n:105,col:5},{n:106,col:6},{n:107,col:7},{n:108,col:8},{n:109,col:9},{n:110,col:10},{n:111,col:11},{n:112,col:12},{n:113,col:13},{n:114,col:14},{n:115,col:15},{n:116,col:16},{n:117,col:17},{n:118,col:18}],
+    ];
+    layout.forEach(row => {
+      let currentCol = 0;
+      row.forEach(item => {
+        while (currentCol < item.col - 1) { grid.appendChild(document.createElement('div')); currentCol++; }
+        const el = ELEMENTS.find(e => e.n === item.n);
+        if (el) {
+          const cell = document.createElement('div');
+          cell.className = 'el-cell';
+          cell.style.background = COLOR_MAP[el.c] + '99';
+          cell.style.borderColor = COLOR_MAP[el.c] + 'cc';
+          cell.innerHTML = `<div class="el-num">${el.n}</div><div class="el-sym">${el.s}</div><div class="el-name">${el.name.substring(0,6)}</div>`;
+          cell.onclick = () => searchElementFromTable(el.name, el.s);
+          grid.appendChild(cell);
+          currentCol++;
+        }
+      });
+    });
+    container.appendChild(grid);
+    const legend = document.createElement('div');
+    legend.className = 'pt-legend';
+    const labels = {alkali:'알칼리금속',alkaline:'알칼리토금속',transition:'전이금속',post:'전이후금속',metalloid:'준금속',nonmetal:'비금속',halogen:'할로겐',noble:'비활성기체',lanthanide:'란타넘족',actinide:'악티늄족'};
+    Object.entries(COLOR_MAP).forEach(([k,v]) => {
+      legend.innerHTML += `<div class="legend-item"><div class="legend-dot" style="background:${v}"></div>${labels[k]}</div>`;
+    });
+    container.appendChild(legend);
+  }
+
+  async function searchElementFromTable(name, symbol) {
+    const resultBox = document.getElementById('result-table');
+    const loading = document.getElementById('loading-table');
+    const output = document.getElementById('table-output');
+    resultBox.classList.add('visible');
+    loading.style.display = 'flex';
+    output.innerHTML = '';
+    resultBox.scrollIntoView({behavior:'smooth'});
+    try {
+      const result = await callAI(`${name}(${symbol}) 원소에 대한 화학 정보를 한국어로 알려주세요.
+🔬 기본 정보 / ⚛️ 원자 구조 / 🌡️ 물리적 성질 / ⚗️ 화학적 성질 / 🌍 실생활 활용 / ⚠️ 안전 정보 / 💡 재밌는 사실`);
+      loading.style.display = 'none';
+      output.innerHTML = `<div class="result-header"><span class="reaction-tag">${symbol} — ${name}</span></div><div class="result-content">${formatResult(result)}</div>`;
+    } catch(err) {
+      loading.style.display = 'none';
+      output.innerHTML = `<div style="color:var(--red)">오류: ${err.message}</div>`;
+    }
+  }
+
+  function fillMol(name) { document.getElementById('mol-input').value = name; }
+  function clearMol() {
+    document.getElementById('mol-input').value = '';
+    document.getElementById('mol-info').innerHTML = '';
+    document.getElementById('mol-viewer').innerHTML = '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--muted);font-size:0.9rem;">화합물을 입력하고 구조 보기를 눌러요</div>';
+  }
+
+  async function showMolecule() {
+    const name = document.getElementById('mol-input').value.trim();
+    if (!name) { alert('물질명을 입력해주세요.'); return; }
+    const info = document.getElementById('mol-info');
+    const viewer = document.getElementById('mol-viewer');
+    info.innerHTML = '⏳ 구조 불러오는 중...';
+    viewer.innerHTML = '';
+    try {
+      const cidRes = await fetch(`https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${encodeURIComponent(name)}/cids/JSON`);
+      const cidData = await cidRes.json();
+      if (!cidData.IdentifierList) throw new Error('물질을 찾을 수 없어요');
+      const cid = cidData.IdentifierList.CID[0];
+      const sdfRes = await fetch(`https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${cid}/SDF?record_type=3d`);
+      const sdf = await sdfRes.text();
+      if (sdf.includes('PUGREST.NotFound') || sdf.length < 100) throw new Error('3D 구조 데이터 없음');
+      viewer.style.height = '400px';
+      const v = $3Dmol.createViewer(viewer, { backgroundColor: '#0a0e1a' });
+      v.addModel(sdf, 'sdf');
+      v.setStyle({}, { stick: { radius: 0.15 }, sphere: { scale: 0.3 } });
+      v.zoomTo();
+      v.render();
+      info.innerHTML = `✅ <b>${name}</b> 3D 구조 | PubChem CID: ${cid} | 드래그로 회전, 스크롤로 확대`;
+    } catch(err) {
+      info.innerHTML = `❌ ${err.message}`;
+      viewer.innerHTML = '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--muted);">구조를 불러올 수 없어요</div>';
+    }
+  }
+
+  const ATOMIC_MASS = {
+    H:1.008,He:4.003,Li:6.941,Be:9.012,B:10.811,C:12.011,N:14.007,O:15.999,
+    F:18.998,Ne:20.180,Na:22.990,Mg:24.305,Al:26.982,Si:28.086,P:30.974,S:32.065,
+    Cl:35.453,Ar:39.948,K:39.098,Ca:40.078,Fe:55.845,Cu:63.546,Zn:65.38,
+    Ag:107.868,Au:196.967,Pb:207.2,Hg:200.59,Mn:54.938,Co:58.933,Ni:58.693,
+    Cr:51.996,Ti:47.867,Ba:137.327,Sr:87.62,Br:79.904,I:126.904,
+  };
+
+  function getMolarMass(formula) {
+    const clean = formula.trim().replace(/\s/g,'').replace(/[a-z]+/g, m => m.charAt(0).toUpperCase() + m.slice(1).toLowerCase()).replace(/^[a-z]/, m => m.toUpperCase());
+    let mass = 0;
+    const regex = /([A-Z][a-z]?)(\d*)/g;
+    let match;
+    while ((match = regex.exec(clean)) !== null) {
+      const el = match[1];
+      const count = parseInt(match[2]) || 1;
+      if (!ATOMIC_MASS[el]) throw new Error(`알 수 없는 원소: ${el}`);
+      mass += ATOMIC_MASS[el] * count;
+    }
+    if (mass === 0) throw new Error('화학식을 확인해주세요');
+    return mass;
+  }
+
+  function fillMoleExample(formula, type, value) {
+    document.getElementById('mole-formula').value = formula;
+    document.getElementById('mole-type').value = type;
+    document.getElementById('mole-value').value = value;
+    updateMoleLabel();
+  }
+
+  function updateMoleLabel() {
+    const type = document.getElementById('mole-type').value;
+    const label = document.getElementById('mole-input-label');
+    if (type === 'mass-to-mole') label.textContent = '질량 (g)';
+    else if (type === 'mole-to-mass') label.textContent = '몰 수 (mol)';
+    else if (type === 'mole-to-molecules') label.textContent = '몰 수 (mol)';
+    else if (type === 'molecules-to-mole') label.textContent = '분자 수';
+  }
+
+  function clearMole() {
+    document.getElementById('mole-formula').value = '';
+    document.getElementById('mole-value').value = '';
+    document.getElementById('result-mole').classList.remove('visible');
+    document.getElementById('mole-output').innerHTML = '';
+  }
+
+  function calcMole() {
+    const formula = document.getElementById('mole-formula').value.trim();
+    const type = document.getElementById('mole-type').value;
+    const value = parseFloat(document.getElementById('mole-value').value);
+    const AVOGADRO = 6.022e23;
+    if (!formula) { alert('화학식을 입력해주세요.'); return; }
+    if (isNaN(value) || value <= 0) { alert('올바른 숫자를 입력해주세요.'); return; }
+    try {
+      const M = getMolarMass(formula);
+      let resultHTML = '';
+      if (type === 'mass-to-mole') {
+        const moles = value / M;
+        resultHTML = `<div class="result-header"><span class="reaction-tag">${formula}</span><span class="reaction-tag">질량 → 몰</span></div><div class="result-content">📐 분자량: <b>${M.toFixed(3)} g/mol</b>\n\n입력 질량: <b>${value} g</b>\n몰 수 = ${value} ÷ ${M.toFixed(3)}\n<b>= ${moles.toFixed(4)} mol</b>\n\n분자 수 = ${moles.toFixed(4)} × 6.022×10²³\n<b>= ${(moles * AVOGADRO).toExponential(3)} 개</b></div>`;
+      } else if (type === 'mole-to-mass') {
+        const mass = value * M;
+        resultHTML = `<div class="result-header"><span class="reaction-tag">${formula}</span><span class="reaction-tag">몰 → 질량</span></div><div class="result-content">📐 분자량: <b>${M.toFixed(3)} g/mol</b>\n\n입력 몰 수: <b>${value} mol</b>\n질량 = ${value} × ${M.toFixed(3)}\n<b>= ${mass.toFixed(4)} g</b></div>`;
+      } else if (type === 'mole-to-molecules') {
+        const molecules = value * AVOGADRO;
+        resultHTML = `<div class="result-header"><span class="reaction-tag">${formula}</span><span class="reaction-tag">몰 → 분자 수</span></div><div class="result-content">입력 몰 수: <b>${value} mol</b>\n분자 수 = ${value} × 6.022×10²³\n<b>= ${molecules.toExponential(3)} 개</b></div>`;
+      } else if (type === 'molecules-to-mole') {
+        const moles = value / AVOGADRO;
+        const mass = moles * M;
+        resultHTML = `<div class="result-header"><span class="reaction-tag">${formula}</span><span class="reaction-tag">분자 수 → 몰</span></div><div class="result-content">입력 분자 수: <b>${value.toExponential(3)} 개</b>\n몰 수 = <b>${moles.toExponential(4)} mol</b>\n질량 = <b>${mass.toExponential(4)} g</b></div>`;
+      }
+      document.getElementById('result-mole').classList.add('visible');
+      document.getElementById('mole-output').innerHTML = resultHTML;
+    } catch(err) {
+      document.getElementById('result-mole').classList.add('visible');
+      document.getElementById('mole-output').innerHTML = `<div style="color:var(--red)">오류: ${err.message}</div>`;
+    }
+  }
+
+  function formatResult(text) {
+    return text
+      .replace(/\$\\text\{([^}]+)\}\$/g, '<b>$1</b>')
+      .replace(/\$[^$]+\$/g, match => match.replace(/[$\\{}]/g,'').replace(/text/g,''))
+      .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+      .replace(/\*([^*]+)\*/g, '$1')
+      .replace(/#{1,3} (.+)/g, '<b>$1</b>')
+      .replace(/^\s*[\*\-] /gm, '• ');
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('mole-type').addEventListener('change', updateMoleLabel);
+    buildPeriodicTable();
+    document.getElementById('substance-input').addEventListener('keydown', e => { if(e.key==='Enter') getSubstanceInfo(); });
+    ['reactant1','reactant2','reactant3'].forEach(id => {
+      document.getElementById(id).addEventListener('keydown', e => { if(e.key==='Enter') analyzeReaction(); });
+    });
+  });
+</script>
+</body>
+</html>
